@@ -1,54 +1,62 @@
-# AI Stack — Local Installation Guide
+# AI Stack — Software Development Environment
 
-Local AI environment built around three model backends, unified through Open WebUI and LiteLLM.
+Local AI stack built for software development. Claude Code is the primary interface for coding and automation. Open WebUI provides a secondary interface for local model exploration.
+
+## Primary Interface
+
+**Claude Code** (CLI / VS Code extension) — handles file editing, git, shell commands, and multi-step dev tasks directly. Install separately from https://claude.ai/code.
 
 ## Model Backends
 
-| Backend          | Purpose                              | When to use                        |
-|------------------|--------------------------------------|------------------------------------|
-| Claude (Anthropic) | Primary AI — complex reasoning, coding, writing | Default for most tasks |
-| Ollama           | Local, private, offline inference    | Privacy-sensitive or offline work  |
-| NVIDIA NIM       | NVIDIA-optimized models (Nemotron, OCR, multimodal) | Exploration, specialized tasks |
+| Backend            | Role                                      | When to use                          |
+|--------------------|-------------------------------------------|--------------------------------------|
+| Claude (Anthropic) | Primary — coding, reasoning, PR generation | Default for all dev tasks            |
+| Ollama             | Local inference                           | Privacy-sensitive code, offline work |
+| NVIDIA NIM         | Specialized NVIDIA models                 | OCR on docs, Nemotron exploration    |
 
-## What This Installs
+## What This Repo Installs
 
-| Service     | Purpose                                   | Port  |
-|-------------|-------------------------------------------|-------|
-| Open WebUI  | Unified chat interface for all backends   | 3000  |
-| LiteLLM     | Model router — single endpoint for all backends | 4000 |
+| Service    | Purpose                                         | Port |
+|------------|-------------------------------------------------|------|
+| Open WebUI | Secondary interface — local model chat          | 3000 |
+| LiteLLM    | Model router — single endpoint for all backends | 4000 |
 
 > Ollama runs natively on the host (not in Docker).
 
 ---
 
-## Prerequisites (manual, one-time per machine)
+## Prerequisites (one-time per machine)
 
-### 1. Docker Desktop
+### 1. Claude Code
+Install from https://claude.ai/code. This is the primary dev interface.
+
+For VS Code integration: install the **Claude Code extension** from the VS Code marketplace.
+
+### 2. Docker Desktop
 - **Windows:** https://docs.docker.com/desktop/install/windows-install/
 - **macOS:** https://docs.docker.com/desktop/install/mac-install/
 
 Verify: `docker --version`
 
-### 2. Ollama
-Download and install from https://ollama.com/download
+### 3. Ollama
+Download from https://ollama.com/download
 
 Verify: `ollama --version`
 
-### 3. NVIDIA Container Toolkit (Windows only, optional)
-Required only for NVIDIA NIM. Enables GPU passthrough into Docker containers.
+### 4. NVIDIA Container Toolkit (Windows only, optional)
+Required for NVIDIA NIM. Enables GPU passthrough into Docker.
 
-Verify GPU in Docker:
 ```bash
 docker run --rm --gpus all nvidia/cuda:12.9.0-base-ubuntu22.04 nvidia-smi
 ```
 
-> **Mac note:** Apple Silicon runs Ollama via Metal automatically. NVIDIA NIM is not supported on Mac.
+> **Mac note:** NVIDIA NIM is not supported on Mac. Ollama runs via Metal automatically on Apple Silicon.
 
 ---
 
 ## Installation
 
-### 1. Clone this repo
+### 1. Clone
 
 ```bash
 git clone https://github.com/BrianDRC/ai-stack.git
@@ -61,11 +69,11 @@ cd ai-stack
 cp .env.example .env
 ```
 
-Open `.env` and fill in:
+Fill in `.env`:
 - `WEBUI_SECRET_KEY` — any random string
-- `ANTHROPIC_API_KEY` — your Anthropic API key (from https://console.anthropic.com)
+- `ANTHROPIC_API_KEY` — from https://console.anthropic.com
 
-### 3. Run setup
+### 3. Start the stack
 
 **macOS / Linux:**
 ```bash
@@ -77,33 +85,32 @@ chmod +x scripts/setup.sh && ./scripts/setup.sh
 .\scripts\setup.ps1
 ```
 
-### 4. Open the interface
+### 4. Verify
 
-Visit http://localhost:3000
-
-The stack is ready. See [docs/models.md](docs/models.md) to add models to each backend.
+- Open WebUI: http://localhost:3000
+- Claude Code: run `claude` in any project directory
 
 ---
 
 ## Roadmap
 
-| Step | What                              | Guide                   |
-|------|-----------------------------------|-------------------------|
-| 1    | Open WebUI (done)                 | This file               |
-| 2    | LiteLLM — unified model router    | [docs/litellm.md](docs/litellm.md) |
-| 3    | NVIDIA NIM                        | [docs/nim.md](docs/nim.md)         |
-| 4    | MCP Servers + agent wiring        | Planned                 |
+| Step | What                           | Guide                              | Status  |
+|------|--------------------------------|------------------------------------|---------|
+| 1    | Infrastructure (WebUI + Ollama) | This file                         | Done    |
+| 2    | LiteLLM — model router         | [docs/litellm.md](docs/litellm.md) | Next    |
+| 3    | MCP Servers                    | [docs/mcp.md](docs/mcp.md)         | Planned |
+| 4    | NVIDIA NIM                     | [docs/nim.md](docs/nim.md)         | Planned |
 
 ---
 
 ## Platform Notes
 
-| Feature              | Windows (NVIDIA) | macOS (Apple Silicon) | macOS (Intel) |
-|----------------------|------------------|-----------------------|---------------|
-| Claude (Anthropic)   | Yes              | Yes                   | Yes           |
-| Ollama GPU accel.    | CUDA             | Metal (automatic)     | CPU only      |
-| NVIDIA NIM           | Supported        | Not supported         | Not supported |
-| 14B local models     | Fast             | Good                  | Slow          |
+| Feature             | Windows (NVIDIA) | macOS (Apple Silicon) | macOS (Intel) |
+|---------------------|------------------|-----------------------|---------------|
+| Claude Code         | Yes              | Yes                   | Yes           |
+| Ollama GPU accel.   | CUDA             | Metal (automatic)     | CPU only      |
+| NVIDIA NIM          | Supported        | Not supported         | Not supported |
+| 14B local models    | Fast             | Good                  | Slow          |
 
 ---
 
@@ -119,9 +126,9 @@ docker compose down
 # View logs
 docker compose logs -f open-webui
 
-# Update Open WebUI to latest
+# Update Open WebUI
 docker compose pull open-webui && docker compose up -d open-webui
 
-# Check status
+# Stack status
 docker compose ps
 ```
