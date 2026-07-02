@@ -173,31 +173,34 @@ Replace `github_pat_your_token_here` with the token you copied in Step 1.
 Lets Claude inspect running containers, view logs, and manage services without you having to run
 `docker` commands yourself.
 
-**Requires:** Docker Desktop running (the setup script confirms this is installed).
+> There is **no** official `@modelcontextprotocol/server-docker` npm package (an earlier version of
+> this doc listed one that doesn't exist — if you see a 404 for that package, that's why). Instead,
+> Docker Desktop ships its own built-in **MCP Toolkit**, which is the official, verified way to do
+> this — safer than trusting a random third-party npm package with access to your Docker socket
+> (which is effectively root-equivalent access to your machine).
 
-Add to `claude_desktop_config.json`, alongside the `github` entry:
+**Requires:** Docker Desktop 4.62 or later (the setup script confirms Docker is installed, but not
+this specific version — check `Docker Desktop → About` if the steps below look different from what
+you see).
 
-**Windows:**
-```json
-"docker": {
-  "command": "cmd",
-  "args": ["/c", "npx", "-y", "@modelcontextprotocol/server-docker"],
-  "env": { "NODE_OPTIONS": "--use-system-ca" }
-}
-```
+This is a one-time, click-through setup in the Docker Desktop app itself — nothing to type into
+`claude_desktop_config.json` by hand:
 
-**macOS / Linux:**
-```json
-"docker": {
-  "command": "npx",
-  "args": ["-y", "@modelcontextprotocol/server-docker"]
-}
-```
+1. Open **Docker Desktop**.
+2. Click **MCP Toolkit** in the left sidebar.
+3. Go to the **Catalog** tab, browse the available servers, and add the one(s) you want (e.g. for
+   container management) to your profile.
+4. Go to the **Clients** tab and click **Connect** next to **Claude Desktop**. This automatically
+   writes the correct entry into `claude_desktop_config.json` for you — no manual editing needed.
+5. Fully quit and reopen Claude (see the [tray/menu bar note above](#where-mcp-servers-are-configured)).
+6. Verify: ask Claude something like *"list running Docker containers"*.
 
-**What you can do:**
+**What you can do (depending on which catalog servers you enable):**
 - "Check the logs of the litellm container for errors"
 - "Restart the open-webui service"
 - "List all running containers and their port mappings"
+
+Source: [Docker's official MCP Toolkit docs](https://docs.docker.com/ai/mcp-catalog-and-toolkit/toolkit/).
 
 ---
 
@@ -259,7 +262,8 @@ have one — it looks like `postgresql://user:pass@localhost/dbname`).
 
 A `claude_desktop_config.json` with all four servers configured (Windows) looks like this — the
 key thing to notice is that all servers live inside the one `mcpServers` object, as separate
-entries:
+entries. `MCP_DOCKER` here is added automatically by Docker Desktop's Connect button (step 2
+above) — you don't type that one in yourself:
 
 ```json
 {
@@ -269,10 +273,9 @@ entries:
       "args": ["/c", "npx", "-y", "@modelcontextprotocol/server-github"],
       "env": { "GITHUB_PERSONAL_ACCESS_TOKEN": "github_pat_your_token_here", "NODE_OPTIONS": "--use-system-ca" }
     },
-    "docker": {
-      "command": "cmd",
-      "args": ["/c", "npx", "-y", "@modelcontextprotocol/server-docker"],
-      "env": { "NODE_OPTIONS": "--use-system-ca" }
+    "MCP_DOCKER": {
+      "command": "docker",
+      "args": ["mcp", "gateway", "run"]
     },
     "playwright": {
       "command": "cmd",
@@ -311,6 +314,10 @@ on Windows, `~/Library/Logs/Claude/mcp-server-<name>.log` on macOS):** `npx` cou
 certificate when downloading the package — usually caused by antivirus or corporate software that
 inspects HTTPS traffic. Add `"NODE_OPTIONS": "--use-system-ca"` to that server's `env` block (see
 the GitHub example above) so Node trusts the same certificates your OS does, then restart the app.
+
+**MCP server log shows `404 Not Found` for `@modelcontextprotocol/server-docker`:** that package
+doesn't exist — remove any `"docker"` entry using it from `claude_desktop_config.json` and follow
+the [Docker MCP](#2-docker-mcp) steps above instead, which use Docker Desktop's built-in toolkit.
 
 ---
 
