@@ -66,6 +66,12 @@ with `{}` as the only content, then add servers as shown below.
 the window — right-click the icon in your taskbar/menu bar and choose Quit) and reopen it. Claude
 only reads this file when it starts up.
 
+Closing the window is **not** the same as quitting — like many desktop apps, Claude keeps running
+in the system tray (Windows: the small arrow near the clock) / menu bar (macOS) after the window
+closes. If you edit the config and reopen the window without quitting from the tray/menu bar icon
+first, your changes won't take effect, and it'll look like the new server "isn't working" when
+really it was never restarted.
+
 ---
 
 ## 1. GitHub MCP
@@ -111,12 +117,19 @@ rather than replacing the whole file.
       "command": "cmd",
       "args": ["/c", "npx", "-y", "@modelcontextprotocol/server-github"],
       "env": {
-        "GITHUB_PERSONAL_ACCESS_TOKEN": "github_pat_your_token_here"
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "github_pat_your_token_here",
+        "NODE_OPTIONS": "--use-system-ca"
       }
     }
   }
 }
 ```
+
+> `NODE_OPTIONS: --use-system-ca` tells Node to trust the certificates Windows already trusts.
+> Without it, antivirus or corporate software that inspects HTTPS traffic (common on Windows —
+> Windows Defender, Kaspersky, corporate proxies, etc.) can make `npx` fail to download the
+> package with an `UNABLE_TO_VERIFY_LEAF_SIGNATURE` error. Safe to include even if you don't hit
+> the error.
 
 **macOS / Linux:**
 ```json
@@ -251,7 +264,7 @@ entries:
     "github": {
       "command": "cmd",
       "args": ["/c", "npx", "-y", "@modelcontextprotocol/server-github"],
-      "env": { "GITHUB_PERSONAL_ACCESS_TOKEN": "github_pat_your_token_here" }
+      "env": { "GITHUB_PERSONAL_ACCESS_TOKEN": "github_pat_your_token_here", "NODE_OPTIONS": "--use-system-ca" }
     },
     "docker": {
       "command": "cmd",
@@ -287,6 +300,12 @@ https://github.com/settings/personal-access-tokens and edit the token, or genera
 
 **"node/npm/npx not recognized" even after setup:** close and reopen your terminal window — a
 newly installed program's location isn't picked up by terminals that were already open.
+
+**MCP server log shows `UNABLE_TO_VERIFY_LEAF_SIGNATURE` (check `%APPDATA%\Claude\logs\mcp-server-<name>.log`
+on Windows, `~/Library/Logs/Claude/mcp-server-<name>.log` on macOS):** `npx` couldn't verify the
+certificate when downloading the package — usually caused by antivirus or corporate software that
+inspects HTTPS traffic. Add `"NODE_OPTIONS": "--use-system-ca"` to that server's `env` block (see
+the GitHub example above) so Node trusts the same certificates your OS does, then restart the app.
 
 ---
 
