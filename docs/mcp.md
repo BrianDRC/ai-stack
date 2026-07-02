@@ -181,7 +181,8 @@ Add to `claude_desktop_config.json`, alongside the `github` entry:
 ```json
 "docker": {
   "command": "cmd",
-  "args": ["/c", "npx", "-y", "@modelcontextprotocol/server-docker"]
+  "args": ["/c", "npx", "-y", "@modelcontextprotocol/server-docker"],
+  "env": { "NODE_OPTIONS": "--use-system-ca" }
 }
 ```
 
@@ -208,7 +209,8 @@ Lets Claude open a real browser, navigate pages, fill forms, take screenshots, a
 ```json
 "playwright": {
   "command": "cmd",
-  "args": ["/c", "npx", "-y", "@playwright/mcp@latest"]
+  "args": ["/c", "npx", "-y", "@playwright/mcp@latest"],
+  "env": { "NODE_OPTIONS": "--use-system-ca" }
 }
 ```
 
@@ -238,7 +240,8 @@ have one — it looks like `postgresql://user:pass@localhost/dbname`).
 ```json
 "postgres": {
   "command": "cmd",
-  "args": ["/c", "npx", "-y", "@modelcontextprotocol/server-postgres", "postgresql://user:pass@localhost/dbname"]
+  "args": ["/c", "npx", "-y", "@modelcontextprotocol/server-postgres", "postgresql://user:pass@localhost/dbname"],
+  "env": { "NODE_OPTIONS": "--use-system-ca" }
 }
 ```
 
@@ -268,11 +271,13 @@ entries:
     },
     "docker": {
       "command": "cmd",
-      "args": ["/c", "npx", "-y", "@modelcontextprotocol/server-docker"]
+      "args": ["/c", "npx", "-y", "@modelcontextprotocol/server-docker"],
+      "env": { "NODE_OPTIONS": "--use-system-ca" }
     },
     "playwright": {
       "command": "cmd",
-      "args": ["/c", "npx", "-y", "@playwright/mcp@latest"]
+      "args": ["/c", "npx", "-y", "@playwright/mcp@latest"],
+      "env": { "NODE_OPTIONS": "--use-system-ca" }
     }
   }
 }
