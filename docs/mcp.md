@@ -41,7 +41,7 @@ We're setting these up one at a time, most useful first.
 | Priority | Server       | What it enables                                          |
 |----------|--------------|----------------------------------------------------------|
 | 1        | GitHub       | Create branches, open PRs, manage issues, review code    |
-| 2        | Docker       | Start/stop containers, read logs, inspect services       |
+| ~~2~~    | ~~Docker~~   | Skipped — see [Docker MCP](#2-docker-mcp-skipped) below  |
 | 3        | Browser      | Automate browsers, test UIs, scrape docs                 |
 | 4        | Database     | Query databases during development and debugging         |
 | 5        | VS Code      | Editor state, open files, diagnostics                    |
@@ -168,39 +168,27 @@ Replace `github_pat_your_token_here` with the token you copied in Step 1.
 
 ---
 
-## 2. Docker MCP
+## 2. Docker MCP (skipped)
 
-Lets Claude inspect running containers, view logs, and manage services without you having to run
-`docker` commands yourself.
+We looked into this and decided **not** to set up a dedicated Docker MCP server. Here's why, in
+case this gets revisited later:
 
-> There is **no** official `@modelcontextprotocol/server-docker` npm package (an earlier version of
-> this doc listed one that doesn't exist — if you see a 404 for that package, that's why). Instead,
-> Docker Desktop ships its own built-in **MCP Toolkit**, which is the official, verified way to do
-> this — safer than trusting a random third-party npm package with access to your Docker socket
-> (which is effectively root-equivalent access to your machine).
+- There is **no** official `@modelcontextprotocol/server-docker` npm package (an earlier version
+  of this doc listed one — it doesn't exist, so if you see a `404` for that package, that's why).
+- Docker Desktop's own built-in **MCP Toolkit** (Sidebar → MCP Toolkit → Catalog) doesn't have a
+  "manage my local containers" entry either — searching its 300+ server catalog for "container"
+  only turns up unrelated things (e.g. a Cloudflare sandbox environment). Its catalog is for
+  running *other* tools as sandboxed containers, not for exposing your own Docker Engine.
+- The remaining option — a community npm package with access to your Docker socket (effectively
+  root-equivalent access to your machine) from an unverified author — isn't worth the risk here.
+- Most importantly: **it's redundant.** Claude Code already has direct terminal access on this
+  machine, so `docker compose ps`, `docker compose logs`, `docker compose restart <service>`, etc.
+  all just work today, no MCP server required. The whole point of MCP servers (see the top of this
+  doc) is to reach things *beyond* what Claude's terminal access already covers — Docker container
+  management doesn't clear that bar for a Claude Code–primary setup like this one.
 
-**Requires:** Docker Desktop 4.62 or later (the setup script confirms Docker is installed, but not
-this specific version — check `Docker Desktop → About` if the steps below look different from what
-you see).
-
-This is a one-time, click-through setup in the Docker Desktop app itself — nothing to type into
-`claude_desktop_config.json` by hand:
-
-1. Open **Docker Desktop**.
-2. Click **MCP Toolkit** in the left sidebar.
-3. Go to the **Catalog** tab, browse the available servers, and add the one(s) you want (e.g. for
-   container management) to your profile.
-4. Go to the **Clients** tab and click **Connect** next to **Claude Desktop**. This automatically
-   writes the correct entry into `claude_desktop_config.json` for you — no manual editing needed.
-5. Fully quit and reopen Claude (see the [tray/menu bar note above](#where-mcp-servers-are-configured)).
-6. Verify: ask Claude something like *"list running Docker containers"*.
-
-**What you can do (depending on which catalog servers you enable):**
-- "Check the logs of the litellm container for errors"
-- "Restart the open-webui service"
-- "List all running containers and their port mappings"
-
-Source: [Docker's official MCP Toolkit docs](https://docs.docker.com/ai/mcp-catalog-and-toolkit/toolkit/).
+If you ever run ai-stack through a Claude interface *without* terminal access (e.g. a hosted chat
+UI), this reasoning wouldn't apply and it'd be worth revisiting.
 
 ---
 
@@ -260,10 +248,9 @@ have one — it looks like `postgresql://user:pass@localhost/dbname`).
 
 ## Putting it all together
 
-A `claude_desktop_config.json` with all four servers configured (Windows) looks like this — the
+A `claude_desktop_config.json` with GitHub and Browser configured (Windows) looks like this — the
 key thing to notice is that all servers live inside the one `mcpServers` object, as separate
-entries. `MCP_DOCKER` here is added automatically by Docker Desktop's Connect button (step 2
-above) — you don't type that one in yourself:
+entries (Docker MCP is intentionally omitted — see above):
 
 ```json
 {
@@ -272,10 +259,6 @@ above) — you don't type that one in yourself:
       "command": "cmd",
       "args": ["/c", "npx", "-y", "@modelcontextprotocol/server-github"],
       "env": { "GITHUB_PERSONAL_ACCESS_TOKEN": "github_pat_your_token_here", "NODE_OPTIONS": "--use-system-ca" }
-    },
-    "MCP_DOCKER": {
-      "command": "docker",
-      "args": ["mcp", "gateway", "run"]
     },
     "playwright": {
       "command": "cmd",
