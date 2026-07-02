@@ -1,0 +1,51 @@
+# litellm.yaml — Step 2 of roadmap
+# Copy to config/litellm.yaml, then follow docs/litellm.md to activate.
+
+model_list:
+
+  # ── Claude (Anthropic) ────────────────────────────────────────
+  # Primary backend. Requires ANTHROPIC_API_KEY in .env.
+  - model_name: claude-sonnet
+    litellm_params:
+      model: claude-sonnet-4-6
+      api_key: os.environ/ANTHROPIC_API_KEY
+
+  - model_name: claude-opus
+    litellm_params:
+      model: claude-opus-4-7
+      api_key: os.environ/ANTHROPIC_API_KEY
+
+  - model_name: claude-haiku
+    litellm_params:
+      model: claude-haiku-4-5-20251001
+      api_key: os.environ/ANTHROPIC_API_KEY
+
+  # ── Ollama (local, host native) ───────────────────────────────
+  # Add/remove models here after running: ollama pull <model>
+  - model_name: qwen3:14b
+    litellm_params:
+      model: ollama/qwen3:14b
+      api_base: http://host.docker.internal:11434
+
+  - model_name: qwen2.5-coder:14b
+    litellm_params:
+      model: ollama/qwen2.5-coder:14b
+      api_base: http://host.docker.internal:11434
+
+  - model_name: nomic-embed-text
+    litellm_params:
+      model: ollama/nomic-embed-text
+      api_base: http://host.docker.internal:11434
+
+  # ── NVIDIA NIM (Step 3, Windows only) ────────────────────────
+  # Uncomment after following docs/nim.md
+  # - model_name: nemotron-nano
+  #   litellm_params:
+  #     model: openai/nvidia/llama-3.1-nemotron-nano-8b-v1
+  #     api_base: http://nim-nemotron-nano:8000/v1
+  #     api_key: nim-local
+
+litellm_settings:
+  master_key: sk-local        # must match LITELLM_MASTER_KEY in .env
+  drop_params: true
+  telemetry: false

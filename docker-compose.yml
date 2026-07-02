@@ -1,0 +1,57 @@
+# AI Stack — Brian
+# Ollama runs natively on the host (not containerized)
+# Roadmap: Open WebUI → LiteLLM → Ollama (host) | NVIDIA NIM
+#
+# Step 1 (current): Open WebUI only
+# Step 2: Uncomment litellm service, update Open WebUI env vars
+# Step 3: Add NVIDIA NIM service, register in litellm.yaml
+
+services:
+
+  # ── Open WebUI ────────────────────────────────────────────────
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: open-webui
+    restart: unless-stopped
+    ports:
+      - "3000:8080"
+    volumes:
+      - open-webui-data:/app/backend/data
+    env_file:
+      - .env
+    environment:
+      # Step 1: talks to Ollama directly on the host
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434
+      # Step 2: uncomment these to route through LiteLLM instead
+      # - OPENAI_API_BASE_URL=http://litellm:4000/v1
+      # - OPENAI_API_KEY=${LITELLM_MASTER_KEY}
+      - SCARF_NO_ANALYTICS=true
+      - DO_NOT_TRACK=true
+      - ANONYMIZED_TELEMETRY=false
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  # ── LiteLLM (Step 2) ─────────────────────────────────────────
+  # Single routing gateway for Ollama, NIM, and cloud APIs.
+  # Uncomment when ready. Requires config/litellm.yaml.
+  #
+  # litellm:
+  #   image: ghcr.io/berriai/litellm:main-latest
+  #   container_name: litellm
+  #   restart: unless-stopped
+  #   ports:
+  #     - "4000:4000"
+  #   volumes:
+  #     - ./config/litellm.yaml:/app/config.yaml
+  #   command: ["--config", "/app/config.yaml", "--port", "4000"]
+  #   extra_hosts:
+  #     - "host.docker.internal:host-gateway"
+
+  # ── NVIDIA NIM (Step 3) ───────────────────────────────────────
+  # Register models in litellm.yaml, not here directly.
+  # NIM services will be added as separate compose entries per model.
+
+volumes:
+  open-webui-data:
+    external: true
+    name: open-webui   # existing volume — preserves your current data

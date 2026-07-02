@@ -1,0 +1,7 @@
+# Enforce LF for shell scripts regardless of OS
+*.sh text eol=lf
+*.ps1 text eol=crlf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.md text eol=lf
+*.example text eol=lf
