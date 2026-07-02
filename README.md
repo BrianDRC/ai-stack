@@ -43,7 +43,12 @@ Download from https://ollama.com/download
 
 Verify: `ollama --version`
 
-### 4. NVIDIA Container Toolkit (Windows only, optional)
+### 4. Node.js (needed for MCP Servers, step 3)
+Not required up front — `scripts/setup.ps1` / `scripts/setup.sh` detect and auto-install it for
+you (via winget on Windows, Homebrew on macOS) when you run the setup script. See
+[docs/mcp.md](docs/mcp.md) for the full walkthrough.
+
+### 5. NVIDIA Container Toolkit (Windows only, optional)
 Required for NVIDIA NIM. Enables GPU passthrough into Docker.
 
 ```bash
@@ -98,7 +103,7 @@ chmod +x scripts/setup.sh && ./scripts/setup.sh
 |------|--------------------------------|------------------------------------|---------|
 | 1    | Infrastructure (WebUI + Ollama) | This file                         | Done    |
 | 2    | LiteLLM — model router         | [docs/litellm.md](docs/litellm.md) | Done    |
-| 3    | MCP Servers                    | [docs/mcp.md](docs/mcp.md)         | Next    |
+| 3    | MCP Servers                    | [docs/mcp.md](docs/mcp.md)         | In progress (GitHub done) |
 | 4    | NVIDIA NIM                     | [docs/nim.md](docs/nim.md)         | Planned |
 
 ---

@@ -1,12 +1,42 @@
 # Step 3 — MCP Servers
 
-MCP (Model Context Protocol) servers extend Claude Code with direct access to external tools and services. Instead of copy-pasting context, Claude can interact with GitHub, Docker, databases, and browsers as part of the dev workflow.
+MCP (Model Context Protocol) servers give Claude direct access to outside tools and services —
+GitHub, Docker, databases, browsers — instead of you copying information back and forth by hand.
+Once set up, you can just ask Claude in plain English ("open a PR for this", "check the container
+logs") and it does it for you.
 
-> Claude Code already handles filesystem and terminal natively. MCP servers add integrations that go beyond what the CLI can do on its own.
+> You do **not** need to know how to code to follow this guide. Every step is copy-paste or
+> click-through. If a step fails, see [Troubleshooting](#troubleshooting) at the bottom.
+
+---
+
+## Before you start: run the setup script
+
+Everything below needs Node.js, and on Windows it also needs a small permission change. Both are
+handled automatically — you don't need to install anything by hand.
+
+1. Open a terminal in the `ai-stack` folder.
+2. Run:
+   - **Windows (PowerShell):** `.\scripts\setup.ps1`
+   - **macOS / Linux:** `./scripts/setup.sh`
+3. Watch the output. You should see green checkmarks (`v`) for Docker, Ollama, and Node.js. If
+   something was missing, the script installs it for you automatically.
+
+What this script does behind the scenes, in plain terms:
+- Checks whether Docker, Ollama, and Node.js are installed. If any is missing, it downloads and
+  installs it for you (using `winget` on Windows, `Homebrew` on macOS).
+- **Windows only:** Node.js tools (`npm`, `npx`) are small helper scripts that Windows blocks by
+  default for security reasons (this is called the "execution policy"). The script turns on the
+  safe setting (`RemoteSigned`) that allows these specific tools to run, without lowering your
+  overall security — scripts you download from the internet still need to be verified.
+
+You only need to do this once per computer.
 
 ---
 
 ## Priority Order
+
+We're setting these up one at a time, most useful first.
 
 | Priority | Server       | What it enables                                          |
 |----------|--------------|----------------------------------------------------------|
@@ -19,25 +49,76 @@ MCP (Model Context Protocol) servers extend Claude Code with direct access to ex
 
 ---
 
-## Installation
+## Where MCP servers are configured
 
-MCP servers are configured in Claude Code's settings file.
+Every MCP server you add goes into one file, called `claude_desktop_config.json`. Think of it as
+a settings list: each entry tells Claude "here's a tool you can use, and here's how to reach it."
 
-**Location:**
-- **Windows:** `%APPDATA%\Claude\claude_desktop_config.json` (Desktop app) or `~/.claude/settings.json` (CLI)
-- **macOS:** `~/Library/Application Support/Claude/claude_desktop_config.json` (Desktop app) or `~/.claude/settings.json` (CLI)
+**File location:**
+- **Windows:** `%APPDATA%\Claude\claude_desktop_config.json`
+  (paste that path into the Windows Explorer address bar to jump straight there)
+- **macOS:** `~/Library/Application Support/Claude/claude_desktop_config.json`
 
-Each server is added as an entry under `mcpServers`.
+Open it with any plain text editor (Notepad works fine). If the file doesn't exist yet, create it
+with `{}` as the only content, then add servers as shown below.
+
+**Important — after any change to this file:** fully quit the Claude desktop app (not just close
+the window — right-click the icon in your taskbar/menu bar and choose Quit) and reopen it. Claude
+only reads this file when it starts up.
 
 ---
 
 ## 1. GitHub MCP
 
-Lets Claude create branches, open and review PRs, manage issues, and search repos.
+Lets Claude create branches, open and review PRs, manage issues, and search your repos on your
+behalf.
 
-**Requires:** GitHub Personal Access Token with `repo` scope.
-Get one at: https://github.com/settings/tokens
+### Step 1 — Create a GitHub access token
 
+This is like a special password that only allows the specific things you approve (e.g. "read and
+write to this one repo"), rather than your full GitHub login.
+
+1. Go to https://github.com/settings/personal-access-tokens/new (you'll need to log into GitHub
+   first if you aren't already).
+2. **Token name:** anything you'll recognize later, e.g. `ai-stack-mcp`.
+3. **Expiration:** pick something like 90 days rather than "No expiration" — you'll want to
+   regenerate it periodically for security, the same way you'd change a password.
+4. **Repository access:** choose "Only select repositories" and pick the repo(s) you want Claude
+   to work with (e.g. `ai-stack`). You can add more repos later by editing the token.
+5. Under **Permissions → Repository permissions**, set:
+   - **Contents:** Read and write
+   - **Issues:** Read and write
+   - **Pull requests:** Read and write
+   - **Metadata:** Read-only (this one is required and gets selected automatically)
+6. Click **Generate token** at the bottom.
+7. **Copy the token immediately** — it starts with `github_pat_...` and GitHub will only show it
+   to you this one time. If you lose it, you'll need to generate a new one.
+
+Treat this token like a password: don't share it, don't post it publicly, don't commit it to a
+git repository.
+
+### Step 2 — Add it to the config file
+
+Open `claude_desktop_config.json` (see [location above](#where-mcp-servers-are-configured)) and
+add a `github` entry under `mcpServers`. If the file already has other content, merge this in
+rather than replacing the whole file.
+
+**Windows:**
+```json
+{
+  "mcpServers": {
+    "github": {
+      "command": "cmd",
+      "args": ["/c", "npx", "-y", "@modelcontextprotocol/server-github"],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "github_pat_your_token_here"
+      }
+    }
+  }
+}
+```
+
+**macOS / Linux:**
 ```json
 {
   "mcpServers": {
@@ -45,14 +126,29 @@ Get one at: https://github.com/settings/tokens
       "command": "npx",
       "args": ["-y", "@modelcontextprotocol/server-github"],
       "env": {
-        "GITHUB_PERSONAL_ACCESS_TOKEN": "ghp_your_token_here"
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "github_pat_your_token_here"
       }
     }
   }
 }
 ```
 
-**What you can do:**
+> **Why Windows uses `cmd /c npx` instead of just `npx`:** on Windows, `npx` is itself a small
+> script, and depending on how the Claude app launches it, it can hit the same permission block
+> mentioned above. Routing through `cmd /c` avoids that entirely, so it's the more reliable option
+> on Windows.
+
+Replace `github_pat_your_token_here` with the token you copied in Step 1.
+
+### Step 3 — Restart and verify
+
+1. Fully quit and reopen the Claude desktop app (see note above).
+2. Ask Claude something like: *"List the open pull requests on my ai-stack repo"* or *"What repos
+   can you see?"*
+3. If Claude responds with real data from GitHub, it's working. If not, see
+   [Troubleshooting](#troubleshooting).
+
+**What you can do once it's working:**
 - "Create a branch `feature/auth` and open a draft PR"
 - "Review the open PRs on repo X and summarize what needs attention"
 - "Close issue #42 and reference it in the commit"
@@ -61,18 +157,26 @@ Get one at: https://github.com/settings/tokens
 
 ## 2. Docker MCP
 
-Lets Claude inspect running containers, view logs, and manage services without leaving the dev context.
+Lets Claude inspect running containers, view logs, and manage services without you having to run
+`docker` commands yourself.
 
-**Requires:** Docker Desktop running. The MCP server connects to the Docker socket.
+**Requires:** Docker Desktop running (the setup script confirms this is installed).
 
+Add to `claude_desktop_config.json`, alongside the `github` entry:
+
+**Windows:**
 ```json
-{
-  "mcpServers": {
-    "docker": {
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-docker"]
-    }
-  }
+"docker": {
+  "command": "cmd",
+  "args": ["/c", "npx", "-y", "@modelcontextprotocol/server-docker"]
+}
+```
+
+**macOS / Linux:**
+```json
+"docker": {
+  "command": "npx",
+  "args": ["-y", "@modelcontextprotocol/server-docker"]
 }
 ```
 
@@ -87,16 +191,19 @@ Lets Claude inspect running containers, view logs, and manage services without l
 
 Lets Claude open a real browser, navigate pages, fill forms, take screenshots, and test UIs.
 
-**Requires:** Node.js installed.
-
+**Windows:**
 ```json
-{
-  "mcpServers": {
-    "playwright": {
-      "command": "npx",
-      "args": ["-y", "@playwright/mcp@latest"]
-    }
-  }
+"playwright": {
+  "command": "cmd",
+  "args": ["/c", "npx", "-y", "@playwright/mcp@latest"]
+}
+```
+
+**macOS / Linux:**
+```json
+"playwright": {
+  "command": "npx",
+  "args": ["-y", "@playwright/mcp@latest"]
 }
 ```
 
@@ -111,14 +218,48 @@ Lets Claude open a real browser, navigate pages, fill forms, take screenshots, a
 
 Lets Claude query databases directly during development and debugging.
 
-**Requires:** Connection string to your database.
+**Requires:** a connection string to your database (ask whoever manages the database if you don't
+have one — it looks like `postgresql://user:pass@localhost/dbname`).
+
+**Windows:**
+```json
+"postgres": {
+  "command": "cmd",
+  "args": ["/c", "npx", "-y", "@modelcontextprotocol/server-postgres", "postgresql://user:pass@localhost/dbname"]
+}
+```
+
+**macOS / Linux:**
+```json
+"postgres": {
+  "command": "npx",
+  "args": ["-y", "@modelcontextprotocol/server-postgres", "postgresql://user:pass@localhost/dbname"]
+}
+```
+
+---
+
+## Putting it all together
+
+A `claude_desktop_config.json` with all four servers configured (Windows) looks like this — the
+key thing to notice is that all servers live inside the one `mcpServers` object, as separate
+entries:
 
 ```json
 {
   "mcpServers": {
-    "postgres": {
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-postgres", "postgresql://user:pass@localhost/dbname"]
+    "github": {
+      "command": "cmd",
+      "args": ["/c", "npx", "-y", "@modelcontextprotocol/server-github"],
+      "env": { "GITHUB_PERSONAL_ACCESS_TOKEN": "github_pat_your_token_here" }
+    },
+    "docker": {
+      "command": "cmd",
+      "args": ["/c", "npx", "-y", "@modelcontextprotocol/server-docker"]
+    },
+    "playwright": {
+      "command": "cmd",
+      "args": ["/c", "npx", "-y", "@playwright/mcp@latest"]
     }
   }
 }
@@ -126,19 +267,34 @@ Lets Claude query databases directly during development and debugging.
 
 ---
 
-## Applying the Config
+## Troubleshooting
 
-After editing the config file, restart Claude Code (or the Claude Desktop app).
-
-Verify servers are loaded:
-```bash
-claude mcp list
+**"npm/npx cannot be loaded because running scripts is disabled" (Windows):** the execution
+policy fix didn't apply. Re-run `scripts/setup.ps1` — it sets this automatically. If it still
+fails, open PowerShell and run:
+```powershell
+Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
 ```
+
+**Claude doesn't seem to see the new tools after restarting:** double check you fully quit the
+app (not just closed the window) before reopening it. Also check that your JSON is valid — a
+missing comma or bracket will silently stop the whole file from loading. Paste the file contents
+into a JSON validator (e.g. jsonlint.com) if you're not sure.
+
+**GitHub commands fail with a permissions error:** your token likely doesn't have the right
+repository selected, or is missing a permission (Contents / Issues / Pull requests). Go back to
+https://github.com/settings/personal-access-tokens and edit the token, or generate a new one.
+
+**"node/npm/npx not recognized" even after setup:** close and reopen your terminal window — a
+newly installed program's location isn't picked up by terminals that were already open.
 
 ---
 
 ## Notes
 
-- MCP servers run as local processes on your machine — they are not containerized
-- Each server only has access to what you configure (token scopes, DB connection strings, etc.)
-- You can enable/disable individual servers without removing them from config
+- MCP servers run as local processes on your machine — they are not containerized.
+- Each server only has access to what you configure (token scopes, DB connection strings, etc.).
+- Tokens and connection strings live only in `claude_desktop_config.json` on your own machine —
+  never commit this file or its contents to a git repository.
+- You can remove a server at any time by deleting its entry from `mcpServers` and restarting the
+  app.
