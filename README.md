@@ -97,20 +97,20 @@ chmod +x scripts/setup.sh && ./scripts/setup.sh
 | Step | What                           | Guide                              | Status  |
 |------|--------------------------------|------------------------------------|---------|
 | 1    | Infrastructure (WebUI + Ollama) | This file                         | Done    |
-| 2    | LiteLLM — model router         | [docs/litellm.md](docs/litellm.md) | Next    |
-| 3    | MCP Servers                    | [docs/mcp.md](docs/mcp.md)         | Planned |
+| 2    | LiteLLM — model router         | [docs/litellm.md](docs/litellm.md) | Done    |
+| 3    | MCP Servers                    | [docs/mcp.md](docs/mcp.md)         | Next    |
 | 4    | NVIDIA NIM                     | [docs/nim.md](docs/nim.md)         | Planned |
 
 ---
 
 ## Platform Notes
 
-| Feature             | Windows (NVIDIA) | macOS (Apple Silicon) | macOS (Intel) |
-|---------------------|------------------|-----------------------|---------------|
-| Claude Code         | Yes              | Yes                   | Yes           |
-| Ollama GPU accel.   | CUDA             | Metal (automatic)     | CPU only      |
-| NVIDIA NIM          | Supported        | Not supported         | Not supported |
-| 14B local models    | Fast             | Good                  | Slow          |
+| Feature             | Windows (NVIDIA) | macOS (Apple Silicon) |
+|---------------------|------------------|-----------------------|
+| Claude Code         | Yes              | Yes                   |
+| Ollama GPU accel.   | CUDA             | Metal (automatic)     |
+| NVIDIA NIM          | Supported        | Not supported         |
+| 14B local models    | Fast             | Good                  |
 
 ---
 
