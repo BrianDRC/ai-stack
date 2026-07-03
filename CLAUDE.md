@@ -19,7 +19,7 @@ in-progress additions. Machine-specific facts and secrets live in the parent
 | Open WebUI  | Running     | `localhost:3000` — volume: `open-webui`                  |
 | LiteLLM     | Running     | `localhost:4000` — routes Ollama models to Open WebUI    |
 | Ollama      | Running     | Native (host), port 11434                                |
-| MCP Servers | In progress | GitHub done, Docker skipped, Browser/Database pending    |
+| MCP Servers | In progress | Open WebUI filesystem (mcpo) done, GitHub done, Docker skipped, Browser/Database pending |
 | NVIDIA NIM  | Not started | NVIDIA account created, Docker GPU verified               |
 
 ## Target Architecture
@@ -40,7 +40,7 @@ GitHub · Docker · Browser · Database · Google Drive
 ## Roadmap
 1. [x] Infrastructure — Open WebUI + Ollama
 2. [x] LiteLLM — model router (Ollama models available in Open WebUI)
-3. [ ] MCP Servers — GitHub (done) → ~~Docker (skipped, redundant with terminal access)~~ → Browser → Database (`docs/mcp.md`)
+3. [ ] MCP Servers — Open WebUI filesystem via mcpo (done) → GitHub (done) → ~~Docker (skipped, redundant with terminal access)~~ → Browser → Database (`docs/mcp.md`)
 4. [ ] NVIDIA NIM (`docs/nim.md`)
 
 ## Model Strategy

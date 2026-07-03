@@ -43,6 +43,21 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
+  # ── mcpo (MCP-to-OpenAPI bridge for Open WebUI) ─────────────────
+  # Exposes a filesystem MCP server over HTTP so models used through Open WebUI
+  # can read files in this repo as a Tool Server. Mounted read-only at the OS
+  # level — even a misbehaving model cannot write through this mount, regardless
+  # of what tools the MCP server exposes. See docs/mcp.md for setup.
+  mcpo:
+    image: ghcr.io/open-webui/mcpo:main
+    container_name: mcpo
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    command: ["--api-key", "${MCPO_API_KEY}", "--", "npx", "-y", "@modelcontextprotocol/server-filesystem", "/projects"]
+    volumes:
+      - .:/projects:ro
+
   # ── NVIDIA NIM (Step 4) ───────────────────────────────────────
   # NIM services added here per model when ready. See docs/nim.md.
 

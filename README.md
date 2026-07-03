@@ -20,6 +20,7 @@ Local AI stack built for software development. Claude Code is the primary interf
 |------------|-------------------------------------------------|------|
 | Open WebUI | Secondary interface — local model chat          | 3000 |
 | LiteLLM    | Model router — single endpoint for all backends | 4000 |
+| mcpo       | MCP-to-OpenAPI bridge — filesystem access for Open WebUI models, read-only | 8000 |
 
 > Ollama runs natively on the host (not in Docker).
 
@@ -103,7 +104,7 @@ chmod +x scripts/setup.sh && ./scripts/setup.sh
 |------|--------------------------------|------------------------------------|---------|
 | 1    | Infrastructure (WebUI + Ollama) | This file                         | Done    |
 | 2    | LiteLLM — model router         | [docs/litellm.md](docs/litellm.md) | Done    |
-| 3    | MCP Servers                    | [docs/mcp.md](docs/mcp.md)         | In progress (GitHub done) |
+| 3    | MCP Servers                    | [docs/mcp.md](docs/mcp.md)         | In progress (Open WebUI filesystem + GitHub done) |
 | 4    | NVIDIA NIM                     | [docs/nim.md](docs/nim.md)         | Planned |
 
 ---

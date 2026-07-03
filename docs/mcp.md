@@ -1,16 +1,130 @@
 # Step 3 — MCP Servers
 
-MCP (Model Context Protocol) servers give Claude direct access to outside tools and services —
-GitHub, Docker, databases, browsers — instead of you copying information back and forth by hand.
-Once set up, you can just ask Claude in plain English ("open a PR for this", "check the container
-logs") and it does it for you.
+MCP (Model Context Protocol) servers give an AI model direct access to outside tools and services
+— files, GitHub, databases, browsers — instead of you copying information back and forth by hand.
+Once set up, you can just ask in plain English ("list the files in this folder", "open a PR for
+this") and it does it for you.
 
 > You do **not** need to know how to code to follow this guide. Every step is copy-paste or
 > click-through. If a step fails, see [Troubleshooting](#troubleshooting) at the bottom.
 
+This doc covers **two separate setups** — they use different mechanisms and don't share config:
+
+- **[Part A — Open WebUI](#part-a--mcp-for-open-webui)**: gives models used in Open WebUI chat
+  (e.g. local Ollama models) access to tools like reading local files. This was the main reason
+  MCP servers were needed for this project.
+- **[Part B — Claude Desktop](#part-b--mcp-for-claude-desktop)**: gives Claude Code / Claude
+  Desktop access to GitHub, browser automation, etc.
+
 ---
 
-## Before you start: run the setup script
+## Part A — MCP for Open WebUI
+
+### Why this needs its own bridge
+
+Open WebUI has *native* MCP support, but only for remote HTTP-based MCP servers (Admin Panel →
+Settings → External Tools). A **local** MCP server — like one that reads files on your own
+machine — talks over stdio (stdin/stdout as a local process), which native MCP support doesn't
+cover. To bridge that, Open WebUI's own team built **`mcpo`**, a small proxy that wraps a local
+MCP server and exposes it as a normal HTTP/OpenAPI service, which Open WebUI *can* connect to as
+a "Tool Server."
+
+### What's set up
+
+- **`mcpo`** runs as a Docker service (see `docker-compose.yml`), wrapping the official
+  **filesystem MCP server** (`@modelcontextprotocol/server-filesystem`).
+- It's scoped to the `ai-stack` folder only — mounted **read-only** at the OS level
+  (`volumes: - .:/projects:ro`), so even if a model tries to write or delete a file, the
+  underlying mount blocks it regardless of what the model or MCP server attempts. This was a
+  deliberate choice: Open WebUI does not reliably ask for confirmation before a model executes a
+  tool call, unlike Claude Code.
+- Protected by an API key (`MCPO_API_KEY` in `.env`).
+
+### Setup steps
+
+1. Run `docker compose up -d` from the `ai-stack` folder (or re-run `scripts/setup.ps1` /
+   `scripts/setup.sh`, which calls this for you). Confirm it started:
+   ```bash
+   docker compose logs mcpo --tail 20
+   ```
+   You should see `Secure MCP Filesystem Server running on stdio` and
+   `Uvicorn running on http://0.0.0.0:8000`.
+2. Open Open WebUI (http://localhost:3000) → **Admin Panel → Settings → Connections** (labels
+   may vary slightly by version — look for "Tools" or "External Tools" if "Connections" isn't
+   there) → **Añadir Conexión / Add Connection**:
+   - **Tipo/Type:** OpenAPI
+   - **Nombre/Name:** FileSystem MCP
+   - **URL:** `http://mcpo:8000` (the two containers share a Docker network, so the service name
+     works — no need for `host.docker.internal` here)
+   - **Autorización/Authorization:** Bearer, paste the `MCPO_API_KEY` value from `.env`
+   - Save.
+3. Fully quit and restart the Claude/Open WebUI stack isn't needed here — but do start a **new
+   chat** in Open WebUI (existing chats may not pick up a newly added tool).
+4. In the new chat: pick a model, enable the FileSystem MCP tool (wrench/tools icon near the
+   message box), and ask something like *"list the files in this folder."*
+
+### Required LiteLLM config for tool-calling to actually work
+
+Getting a model to correctly *execute* a tool call (not just describe one in text) took several
+fixes, all already applied in `config/litellm.yaml.example` — if you're setting this up on a new
+machine, copy that file fresh rather than an old `litellm.yaml` to get these automatically:
+
+1. **Use `ollama_chat/<model>`, not `ollama/<model>`.** The plain `ollama/` provider uses a
+   simpler completion-style endpoint that doesn't return structured tool calls — the model ends up
+   just printing a tool-call-shaped JSON blob as regular chat text instead of it actually being
+   executed.
+2. **Set `num_ctx: 8192`** (or higher) in `litellm_params`. Tool definitions take real context
+   space — a realistic Open WebUI tool list (built-in tools like notes/calendar/automations, plus
+   whatever MCP tools you've added) can easily run 2,000–6,000+ tokens. Ollama's small default
+   context window **silently truncates** the prompt to fit, dropping tool definitions with no
+   error message. The symptom looks exactly like "the model doesn't know about the tool," which
+   is misleading — it never even saw it.
+3. **Set `model_info: { supports_function_calling: true }`.** Ollama models aren't in LiteLLM's
+   built-in capability database. Combined with `drop_params: true` (already set, needed for other
+   reasons), LiteLLM can otherwise silently strip the `tools` parameter before it ever reaches
+   Ollama.
+4. **In Open WebUI, set Function Calling mode to "Native"** for the model/chat (Controls →
+   Parámetros Avanzados → Modo de Llamada a Funciones → Nativo). The default "prompt-based" mode
+   is not reliable for tool servers registered this way.
+5. **Only one active connection per model.** Open WebUI can have both an "API OpenAI" connection
+   (pointing at LiteLLM) and a separate "API Ollama" connection (pointing directly at Ollama)
+   enabled at the same time. If both are on, models with the same name from each source collide,
+   and Open WebUI may silently route straight to Ollama — bypassing LiteLLM (and all of the fixes
+   above) entirely, with no error. Check **Admin Panel → Settings → Connections** and disable
+   "API Ollama" if you only want traffic going through LiteLLM.
+
+### Model choice matters — not every "tools capable" model works
+
+Ollama tags both `qwen3:14b` and `qwen2.5-coder:14b` as supporting `tools` (`ollama show
+<model>` → `capabilities`). In practice, only one of them reliably returns a structured
+`tool_calls` response:
+
+- **`qwen3:14b` — verified working.** Calling `POST /api/chat` on Ollama directly with a `tools`
+  array returns a proper `message.tool_calls` array.
+- **`qwen2.5-coder:14b` — verified NOT working.** The same direct test returns the tool call as
+  plain text inside `message.content` (e.g. `{"name": "list_directory", "arguments": {...}}` as a
+  string), with no `tool_calls` field at all — even though Ollama's own capability tag says it
+  should work.
+
+If tool-calling misbehaves with a model you add later, test it directly against Ollama first
+(bypassing LiteLLM and Open WebUI) to isolate whether it's a model limitation:
+```bash
+curl -s http://localhost:11434/api/chat -d '{
+  "model": "<model>",
+  "messages": [{"role": "user", "content": "list files in /projects"}],
+  "tools": [{"type":"function","function":{"name":"list_directory","description":"","parameters":{"type":"object","properties":{"path":{"type":"string"}},"required":["path"]}}}],
+  "stream": false
+}'
+```
+Look for a `tool_calls` array in the response. If it's missing and the JSON is inside `content`
+as text instead, that model's Ollama template doesn't support structured tool calls — pick a
+different model for tool-calling tasks.
+
+---
+
+## Part B — MCP for Claude Desktop
+
+### Before you start: run the setup script
 
 Everything below needs Node.js, and on Windows it also needs a small permission change. Both are
 handled automatically — you don't need to install anything by hand.
@@ -34,7 +148,7 @@ You only need to do this once per computer.
 
 ---
 
-## Priority Order
+### Priority Order
 
 We're setting these up one at a time, most useful first.
 
@@ -49,7 +163,7 @@ We're setting these up one at a time, most useful first.
 
 ---
 
-## Where MCP servers are configured
+### Where MCP servers are configured
 
 Every MCP server you add goes into one file, called `claude_desktop_config.json`. Think of it as
 a settings list: each entry tells Claude "here's a tool you can use, and here's how to reach it."
@@ -74,12 +188,12 @@ really it was never restarted.
 
 ---
 
-## 1. GitHub MCP
+### 1. GitHub MCP
 
 Lets Claude create branches, open and review PRs, manage issues, and search your repos on your
 behalf.
 
-### Step 1 — Create a GitHub access token
+#### Step 1 — Create a GitHub access token
 
 This is like a special password that only allows the specific things you approve (e.g. "read and
 write to this one repo"), rather than your full GitHub login.
@@ -103,7 +217,7 @@ write to this one repo"), rather than your full GitHub login.
 Treat this token like a password: don't share it, don't post it publicly, don't commit it to a
 git repository.
 
-### Step 2 — Add it to the config file
+#### Step 2 — Add it to the config file
 
 Open `claude_desktop_config.json` (see [location above](#where-mcp-servers-are-configured)) and
 add a `github` entry under `mcpServers`. If the file already has other content, merge this in
@@ -153,7 +267,7 @@ rather than replacing the whole file.
 
 Replace `github_pat_your_token_here` with the token you copied in Step 1.
 
-### Step 3 — Restart and verify
+#### Step 3 — Restart and verify
 
 1. Fully quit and reopen the Claude desktop app (see note above).
 2. Ask Claude something like: *"List the open pull requests on my ai-stack repo"* or *"What repos
@@ -168,7 +282,7 @@ Replace `github_pat_your_token_here` with the token you copied in Step 1.
 
 ---
 
-## 2. Docker MCP (skipped)
+### 2. Docker MCP (skipped)
 
 We looked into this and decided **not** to set up a dedicated Docker MCP server. Here's why, in
 case this gets revisited later:
@@ -192,7 +306,7 @@ UI), this reasoning wouldn't apply and it'd be worth revisiting.
 
 ---
 
-## 3. Browser (Playwright) MCP
+### 3. Browser (Playwright) MCP
 
 Lets Claude open a real browser, navigate pages, fill forms, take screenshots, and test UIs.
 
@@ -220,7 +334,7 @@ Lets Claude open a real browser, navigate pages, fill forms, take screenshots, a
 
 ---
 
-## 4. Database MCP
+### 4. Database MCP
 
 Lets Claude query databases directly during development and debugging.
 
@@ -246,7 +360,7 @@ have one — it looks like `postgresql://user:pass@localhost/dbname`).
 
 ---
 
-## Putting it all together
+### Putting it all together
 
 A `claude_desktop_config.json` with GitHub and Browser configured (Windows) looks like this — the
 key thing to notice is that all servers live inside the one `mcpServers` object, as separate
@@ -271,7 +385,7 @@ entries (Docker MCP is intentionally omitted — see above):
 
 ---
 
-## Troubleshooting
+### Troubleshooting
 
 **"npm/npx cannot be loaded because running scripts is disabled" (Windows):** the execution
 policy fix didn't apply. Re-run `scripts/setup.ps1` — it sets this automatically. If it still
@@ -304,7 +418,7 @@ the [Docker MCP](#2-docker-mcp) steps above instead, which use Docker Desktop's 
 
 ---
 
-## Notes
+### Notes
 
 - MCP servers run as local processes on your machine — they are not containerized.
 - Each server only has access to what you configure (token scopes, DB connection strings, etc.).

@@ -22,15 +22,37 @@ model_list:
 
   # ── Ollama (local, host native) ───────────────────────────────
   # Add/remove models here after running: ollama pull <model>
+  #
+  # Use "ollama_chat/" (not "ollama/") for chat models — "ollama/" uses a
+  # simpler completion-style endpoint that doesn't return structured tool
+  # calls correctly. "ollama/" is still correct for embedding models below.
+  # num_ctx is set high because tool definitions (e.g. from mcpo/Open WebUI's
+  # MCP tools) can easily add 2000-6000+ tokens; the small Ollama default
+  # context window silently truncates prompts and drops tool definitions
+  # without any error. supports_function_calling is set explicitly because
+  # Ollama models aren't in LiteLLM's built-in capability map, and
+  # drop_params (below) would otherwise silently strip the tools param.
+  #
+  # Not every model that Ollama tags "tools capable" actually returns
+  # structured tool_calls in practice — verified working: qwen3:14b.
+  # Verified NOT working (returns tool call as plain text): qwen2.5-coder:14b.
+  # If tool-calling misbehaves with a new model, test directly against
+  # Ollama's /api/chat first before assuming LiteLLM or Open WebUI is at fault.
   - model_name: qwen3:14b
     litellm_params:
-      model: ollama/qwen3:14b
+      model: ollama_chat/qwen3:14b
       api_base: http://host.docker.internal:11434
+      num_ctx: 8192
+    model_info:
+      supports_function_calling: true
 
   - model_name: qwen2.5-coder:14b
     litellm_params:
-      model: ollama/qwen2.5-coder:14b
+      model: ollama_chat/qwen2.5-coder:14b
       api_base: http://host.docker.internal:11434
+      num_ctx: 8192
+    model_info:
+      supports_function_calling: true
 
   - model_name: nomic-embed-text
     litellm_params:
