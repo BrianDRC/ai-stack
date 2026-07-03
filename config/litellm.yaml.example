@@ -34,10 +34,16 @@ model_list:
   # drop_params (below) would otherwise silently strip the tools param.
   #
   # Not every model that Ollama tags "tools capable" actually returns
-  # structured tool_calls in practice — verified working: qwen3:14b.
-  # Verified NOT working (returns tool call as plain text): qwen2.5-coder:14b.
-  # If tool-calling misbehaves with a new model, test directly against
-  # Ollama's /api/chat first before assuming LiteLLM or Open WebUI is at fault.
+  # structured tool_calls in practice. Verified directly against Ollama's
+  # /api/chat (see docs/mcp.md Part A for the test recipe):
+  #   working:      qwen3:14b, devstral:24b, gpt-oss:20b
+  #   NOT working:  qwen2.5-coder:14b, deepseek-coder-v2:16b (returns the
+  #                 tool call as plain text / empty content instead)
+  # Pattern so far: purpose-built agentic models (devstral, gpt-oss) work
+  # reliably; repurposed code-completion models don't, regardless of what
+  # Ollama's own capability tag says. If tool-calling misbehaves with a new
+  # model, test directly against Ollama's /api/chat first before assuming
+  # LiteLLM or Open WebUI is at fault.
   - model_name: qwen3:14b
     litellm_params:
       model: ollama_chat/qwen3:14b
@@ -49,6 +55,22 @@ model_list:
   - model_name: qwen2.5-coder:14b
     litellm_params:
       model: ollama_chat/qwen2.5-coder:14b
+      api_base: http://host.docker.internal:11434
+      num_ctx: 8192
+    model_info:
+      supports_function_calling: true
+
+  - model_name: devstral:24b
+    litellm_params:
+      model: ollama_chat/devstral:24b
+      api_base: http://host.docker.internal:11434
+      num_ctx: 8192
+    model_info:
+      supports_function_calling: true
+
+  - model_name: gpt-oss:20b
+    litellm_params:
+      model: ollama_chat/gpt-oss:20b
       api_base: http://host.docker.internal:11434
       num_ctx: 8192
     model_info:
